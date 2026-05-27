@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculadora</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #f0ece4;
+      --surface:    #faf8f4;
+      --ink:        #1a1710;
+      --ink-soft:   #7a7567;
+      --accent:     #c84b2f;
+      --accent2:    #2f6bc8;
+      --border:     #ddd9d0;
+      --btn-num:    #ffffff;
+      --btn-fn:     #e8e3d8;
+      --btn-op:     #1a1710;
+      --btn-eq:     #c84b2f;
+      --shadow-sm:  0 2px 4px rgba(26,23,16,.08);
+      --shadow-md:  0 8px 24px rgba(26,23,16,.12);
+      --shadow-lg:  0 20px 60px rgba(26,23,16,.18);
+      --r:          14px;
+      --mono:       'DM Mono', monospace;
+      --sans:       'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--sans);
+      position: relative;
+    }
+
+    /* decorative background circles */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(200,75,47,.12), transparent 70%);
+      top: -100px; right: -100px;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(47,107,200,.10), transparent 70%);
+      bottom: -80px; left: -80px;
+    }
+
+    /* ── CALCULATOR SHELL ── */
+    .calc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      width: 340px;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      animation: slideUp .5s cubic-bezier(.16,1,.3,1) both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px) scale(.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* top label */
+    .label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .label-name {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .label-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-soft);
+      background: var(--btn-fn);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      letter-spacing: 1px;
+    }
+
+    /* ── DISPLAY ── */
+    .display {
+      background: var(--ink);
+      border-radius: var(--r);
+      padding: 20px 22px 18px;
+      margin-bottom: 20px;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* subtle scan-line effect */
+    .display::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(255,255,255,.015) 3px,
+        rgba(255,255,255,.015) 4px
+      );
+      pointer-events: none;
+      border-radius: var(--r);
+    }
+
+    .disp-expr {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: rgba(255,255,255,.35);
+      min-height: 20px;
+      text-align: right;
+      word-break: break-all;
+      letter-spacing: .5px;
+      transition: opacity .2s;
+    }
+    .disp-val {
+      font-family: var(--mono);
+      font-size: 42px;
+      font-weight: 400;
+      color: #ffffff;
+      text-align: right;
+      word-break: break-all;
+      letter-spacing: -1.5px;
+      line-height: 1;
+      margin-top: 6px;
+      transition: color .15s, transform .1s;
+    }
+    .disp-val.result { color: #ff8a70; }
+    .disp-val.pop { animation: pop .18s ease; }
+
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+    }
+
+    button {
+      font-family: var(--mono);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      height: 64px;
+      font-size: 17px;
+      transition: transform .1s, box-shadow .15s, background .12s;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ripple */
+    button::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background .2s;
+      border-radius: inherit;
+    }
+    button:active::after { background: rgba(255,255,255,.15); }
+    button:active { transform: scale(.92); }
+
+    /* digit */
+    .btn-num {
+      background: var(--btn-num);
+      color: var(--ink);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-num:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    /* function (AC, +/−, %) */
+    .btn-fn {
+      background: var(--btn-fn);
+      color: var(--ink-soft);
+      font-weight: 500;
+    }
+    .btn-fn:hover { background: #ddd8ce; }
+
+    /* operator */
+    .btn-op {
+      background: var(--btn-op);
+      color: #ffffff;
+      border-color: transparent;
+      font-size: 20px;
+    }
+    .btn-op:hover { background: #2e2b22; box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+    /* equals */
+    .btn-eq {
+      background: var(--btn-eq);
+      color: #ffffff;
+      border-color: transparent;
+      font-size: 22px;
+    }
+    .btn-eq:hover { background: #b03e26; box-shadow: 0 8px 20px rgba(200,75,47,.35); transform: translateY(-1px); }
+
+    /* wide zero */
+    .span2 {
+      grid-column: span 2;
+      justify-content: flex-start;
+      padding-left: 26px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+    }
+
+    /* ── HISTORY STRIP ── */
+    .history {
+      margin-top: 18px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .history-title {
+      font-family: var(--sans);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+    }
+    .history-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 72px;
+      overflow-y: auto;
+    }
+    .history-list::-webkit-scrollbar { display: none; }
+    .history-item {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-soft);
+      display: flex;
+      justify-content: space-between;
+      animation: fadeIn .2s ease;
+    }
+    .history-item span:last-child { color: var(--accent); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--border);
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="calc">
+  <div class="label">
+    <span class="label-name">Calculadora</span>
+    <span class="label-badge">v2.0</span>
+  </div>
+
+  <div class="display">
+    <div class="disp-expr" id="expr"></div>
+    <div class="disp-val"  id="val">0</div>
+  </div>
+
+  <div class="grid">
+    <!-- row 1 -->
+    <button class="btn-fn" onclick="clearAll()">AC</button>
+    <button class="btn-fn" onclick="toggleSign()">+/−</button>
+    <button class="btn-fn" onclick="percent()">%</button>
+    <button class="btn-op" onclick="setOp('/')">÷</button>
+    <!-- row 2 -->
+    <button class="btn-num" onclick="input('7')">7</button>
+    <button class="btn-num" onclick="input('8')">8</button>
+    <button class="btn-num" onclick="input('9')">9</button>
+    <button class="btn-op" onclick="setOp('*')">×</button>
+    <!-- row 3 -->
+    <button class="btn-num" onclick="input('4')">4</button>
+    <button class="btn-num" onclick="input('5')">5</button>
+    <button class="btn-num" onclick="input('6')">6</button>
+    <button class="btn-op" onclick="setOp('-')">−</button>
+    <!-- row 4 -->
+    <button class="btn-num" onclick="input('1')">1</button>
+    <button class="btn-num" onclick="input('2')">2</button>
+    <button class="btn-num" onclick="input('3')">3</button>
+    <button class="btn-op" onclick="setOp('+')">+</button>
+    <!-- row 5 -->
+    <button class="btn-num span2" onclick="input('0')">0</button>
+    <button class="btn-num" onclick="inputDot()">.</button>
+    <button class="btn-eq" onclick="calculate()">=</button>
+  </div>
+
+  <!-- historial -->
+  <div class="history">
+    <p class="history-title">Historial</p>
+    <ul class="history-list" id="history"></ul>
+  </div>
+
+  <p class="footer">vanilla js · sin dependencias · open source</p>
+</div>
+
+<script>
+  /* ── Estado ─────────────────────────────────────── */
+  let curr      = '0';
+  let prev      = null;
+  let op        = null;
+  let fresh     = false;    // próximo dígito reemplaza display
+  const OPS     = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+  const histArr = [];
+
+  /* ── Refs DOM ───────────────────────────────────── */
+  const valEl  = document.getElementById('val');
+  const exprEl = document.getElementById('expr');
+  const histEl = document.getElementById('history');
+
+  /* ── Render ─────────────────────────────────────── */
+  function render(mode = 'normal') {
+    let d = curr;
+    // Si es muy largo, usar notación de precisión
+    if (d.replace('-', '').replace('.', '').length > 10) {
+      d = parseFloat(d).toPrecision(8);
+    }
+    valEl.textContent = d;
+    valEl.className   = 'disp-val' + (mode === 'result' ? ' result' : '');
+    // micro animación
+    valEl.classList.remove('pop');
+    void valEl.offsetWidth;
+    valEl.classList.add('pop');
+  }
+
+  function setExpr(t) { exprEl.textContent = t; }
+
+  /* ── Historial ──────────────────────────────────── */
+  function addHistory(expr, result) {
+    histArr.unshift({ expr, result });
+    if (histArr.length > 5) histArr.pop();
+    histEl.innerHTML = histArr.map(h =>
+      `<li class="history-item"><span>${h.expr}</span><span>${h.result}</span></li>`
+    ).join('');
+  }
+
+  /* ── Input dígito ───────────────────────────────── */
+  function input(d) {
+    if (curr.replace('-','').length >= 12) return;
+    if (fresh) { curr = d; fresh = false; }
+    else curr = curr === '0' ? d : curr + d;
+    render();
+  }
+
+  /* ── Punto decimal ──────────────────────────────── */
+  function inputDot() {
+    if (fresh) { curr = '0.'; fresh = false; }
+    else if (!curr.includes('.')) curr += '.';
+    render();
+  }
+
+  /* ── Operador ───────────────────────────────────── */
+  function setOp(o) {
+    if (op && !fresh) calculate(true);
+    prev  = curr;
+    op    = o;
+    fresh = true;
+    setExpr(`${prev} ${OPS[o]}`);
+  }
+
+  /* ── Calcular ───────────────────────────────────── */
+  function calculate(chained = false) {
+    if (!op || prev === null) return;
+
+    const a = parseFloat(prev);
+    const b = parseFloat(curr);
+    let res;
+
+    switch (op) {
+      case '+': res = a + b; break;
+      case '-': res = a - b; break;
+      case '*': res = a * b; break;
+      case '/':
+        if (b === 0) {
+          curr = 'Error';
+          setExpr('División por cero');
+          render();
+          resetState();
+          return;
+        }
+        res = a / b;
+        break;
+    }
+
+    // Evitar ruido flotante
+    const resStr = parseFloat(res.toPrecision(10)).toString();
+    const exprStr = `${prev} ${OPS[op]} ${curr}`;
+
+    if (!chained) {
+      setExpr(`${exprStr} =`);
+      addHistory(exprStr, resStr);
+    }
+
+    curr  = resStr;
+    op    = null;
+    prev  = null;
+    fresh = true;
+    render('result');
+  }
+
+  /* ── Utilidades ─────────────────────────────────── */
+  function clearAll() {
+    curr = '0'; prev = null; op = null; fresh = false;
+    setExpr('');
+    render();
+  }
+
+  function toggleSign() {
+    curr = (parseFloat(curr) * -1).toString();
+    render();
+  }
+
+  function percent() {
+    curr = (parseFloat(curr) / 100).toString();
+    render();
+  }
+
+  function resetState() { op = null; prev = null; fresh = true; }
+
+  /* ── Teclado ────────────────────────────────────── */
+  document.addEventListener('keydown', e => {
+    if ('0123456789'.includes(e.key))         input(e.key);
+    else if (e.key === '.')                   inputDot();
+    else if (e.key === '+')                   setOp('+');
+    else if (e.key === '-')                   setOp('-');
+    else if (e.key === '*')                   setOp('*');
+    else if (e.key === '/') { e.preventDefault(); setOp('/'); }
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Escape')              clearAll();
+    else if (e.key === 'Backspace') {
+      if (fresh) return;
+      curr = curr.length > 1 ? curr.slice(0, -1) : '0';
+      render();
+    }
+  });
+</script>
+</body>
+</html>
